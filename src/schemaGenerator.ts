@@ -4,10 +4,10 @@ import type {
   HttpMethod,
   OpenApiOperation,
   GenerateDocsOptions
-} from "./types";
-import { determineAuthRequirement, getSecurityRequirements } from "./authUtils";
-import type { ZodSchemaInfo } from "./codeParser";
-import { zodToOpenApiSchema, generateExampleFromZodSchema } from "./zodToOpenApi";
+} from "./types.js";
+import { determineAuthRequirement, getSecurityRequirements } from "./authUtils.js";
+import type { ZodSchemaInfo } from "./codeParser.js";
+import { zodToOpenApiSchema, generateExampleFromZodSchema } from "./zodToOpenApi.js";
 
 /**
  * Generate dynamic OpenAPI schema from example data
