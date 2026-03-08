@@ -1,5 +1,6 @@
 import type { HttpMethod, ZodSchemaInfo, ResponseSchemaRef } from "./types.js";
 import path from "path";
+import { tsImport } from "tsx/esm/api";
 
 export type { ZodSchemaInfo };
 
@@ -30,6 +31,17 @@ function resolveImportPath(importPath: string): string {
     }
   }
   return importPath;
+}
+
+/**
+ * Dynamically import a module, using tsx's tsImport for .ts files
+ * so that TypeScript schemas can be loaded at runtime.
+ */
+async function dynamicImport(filePath: string): Promise<Record<string, unknown>> {
+  if (filePath.endsWith(".ts")) {
+    return tsImport(filePath, import.meta.url) as Promise<Record<string, unknown>>;
+  }
+  return import(filePath);
 }
 
 /**
@@ -250,9 +262,9 @@ export async function detectZodSchemas(fileContent: string): Promise<ZodSchemaIn
 
           try {
             const resolvedPath = resolveImportPath(importPath);
-            const schemaModule = await import(resolvedPath);
+            const schemaModule = await dynamicImport(resolvedPath);
             if (schemaModule[schemaName]) {
-              zodSchemaInfo.schema = schemaModule[schemaName];
+              zodSchemaInfo.schema = schemaModule[schemaName] as import("zod").ZodTypeAny;
             }
           } catch (error) {
             console.warn(`Failed to load Zod schema ${schemaName} from ${importPath}:`, error);
@@ -364,7 +376,7 @@ export async function resolveResponseSchemaRefs(
       for (const existingPath of existingImportPaths) {
         try {
           const fullPath = resolveImportPath(existingPath);
-          const schemaModule = await import(fullPath);
+          const schemaModule = await dynamicImport(fullPath);
           if (schemaModule[schemaName]) {
             resolvedImportPath = existingPath;
             break;
@@ -400,9 +412,9 @@ export async function resolveResponseSchemaRefs(
 
     try {
       const fullPath = resolveImportPath(resolvedImportPath);
-      const schemaModule = await import(fullPath);
+      const schemaModule = await dynamicImport(fullPath);
       if (schemaModule[schemaName]) {
-        zodSchemaInfo.schema = schemaModule[schemaName];
+        zodSchemaInfo.schema = schemaModule[schemaName] as import("zod").ZodTypeAny;
       } else {
         console.warn(
           `@responseSchema: Schema "${schemaName}" not found in "${resolvedImportPath}". ` +
