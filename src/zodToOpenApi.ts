@@ -1,8 +1,15 @@
 import { z } from "zod";
 import { fake, seed } from "zod-schema-faker/v4";
 
-// Seed for deterministic examples across runs
-seed(42);
+let seeded = false;
+
+/** Lazily seed faker on first use for deterministic examples. */
+function ensureSeeded() {
+  if (!seeded) {
+    seed(42);
+    seeded = true;
+  }
+}
 
 /**
  * Convert a Zod schema to OpenAPI 3.0 schema format.
@@ -154,6 +161,7 @@ export function generateExampleFromZodSchema(zodSchema: z.ZodTypeAny, fieldName?
     }
 
     // Priority 2: Use zod-schema-faker for all other types
+    ensureSeeded();
     return fake(zodSchema);
   } catch (error) {
     console.warn("Error generating example from Zod schema:", error);
