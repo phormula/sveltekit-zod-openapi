@@ -1,13 +1,15 @@
 import { z } from "zod";
-import { fake, seed } from "zod-schema-faker/v4";
+import { faker } from "@faker-js/faker";
+import { fake, setFaker } from "zod-schema-faker/v4";
 
-let seeded = false;
+let initialized = false;
 
-/** Lazily seed faker on first use for deterministic examples. */
-function ensureSeeded() {
-  if (!seeded) {
-    seed(42);
-    seeded = true;
+/** Lazily initialize zod-schema-faker with the faker instance on first use. */
+function ensureFakerInitialized() {
+  if (!initialized) {
+    setFaker(faker);
+    faker.seed(42);
+    initialized = true;
   }
 }
 
@@ -161,7 +163,7 @@ export function generateExampleFromZodSchema(zodSchema: z.ZodTypeAny, fieldName?
     }
 
     // Priority 2: Use zod-schema-faker for all other types
-    ensureSeeded();
+    ensureFakerInitialized();
     return fake(zodSchema);
   } catch (error) {
     console.warn("Error generating example from Zod schema:", error);
