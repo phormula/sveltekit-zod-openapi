@@ -5,180 +5,78 @@ import { fake, seed } from "zod-schema-faker/v4";
 seed(42);
 
 /**
- * Convert a Zod schema to OpenAPI 3.0 schema format
- * Works with Zod v3 and v4
+ * Convert a Zod schema to OpenAPI 3.0 schema format.
+ * Uses Zod v4's built-in toJSONSchema() and normalizes for OpenAPI 3.0 compatibility.
  */
 export function zodToOpenApiSchema(zodSchema: z.ZodTypeAny): Record<string, unknown> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const def = zodSchema._def as any;
-    const typeName = def.type || def.typeName;
-
-    // Handle optional/nullable types by unwrapping
-    if (
-      typeName === "ZodOptional" ||
-      typeName === "ZodNullable" ||
-      typeName === "optional" ||
-      typeName === "nullable"
-    ) {
-      return zodToOpenApiSchema(def.innerType);
-    }
-
-    // Handle object schemas
-    if ((typeName === "ZodObject" || typeName === "object") && "shape" in def) {
-      const properties: Record<string, Record<string, unknown>> = {};
-      const required: string[] = [];
-
-      const shape =
-        typeof def.shape === "function"
-          ? (def.shape as () => Record<string, z.ZodTypeAny>)()
-          : (def.shape as Record<string, z.ZodTypeAny>);
-
-      for (const [key, value] of Object.entries(shape)) {
-        const fieldSchema = value as z.ZodTypeAny;
-        properties[key] = zodToOpenApiSchema(fieldSchema);
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const fieldDef = fieldSchema._def as any;
-        const fieldTypeName = fieldDef.type || fieldDef.typeName;
-        const isOptional =
-          fieldTypeName === "ZodOptional" ||
-          fieldTypeName === "optional" ||
-          fieldTypeName === "ZodNullable" ||
-          fieldTypeName === "nullable";
-        if (!isOptional) {
-          required.push(key);
-        }
-      }
-
-      return {
-        type: "object",
-        properties,
-        required: required.length > 0 ? required : undefined,
-        additionalProperties: false
-      };
-    }
-
-    // Handle string schemas with validation rules
-    if (typeName === "ZodString" || typeName === "string") {
-      const schema: Record<string, unknown> = { type: "string" };
-
-      if (def.checks && Array.isArray(def.checks)) {
-        for (const check of def.checks) {
-          const checkKind = check.kind;
-          const checkConstructor = check.constructor?.name;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const zodMeta = (check as any)._zod;
-          const zodDef = zodMeta?.def;
-
-          if (
-            checkKind === "email" ||
-            checkConstructor === "ZodEmail" ||
-            check.format === "email"
-          ) {
-            schema.format = "email";
-          } else if (
-            checkKind === "url" ||
-            checkConstructor === "ZodUrl" ||
-            check.format === "url"
-          ) {
-            schema.format = "uri";
-          } else if (
-            checkKind === "uuid" ||
-            checkConstructor === "ZodUuid" ||
-            check.format === "uuid"
-          ) {
-            schema.format = "uuid";
-          } else if (
-            checkKind === "min" ||
-            checkConstructor === "$ZodCheckMinLength" ||
-            zodDef?.check === "min_length"
-          ) {
-            schema.minLength = check.value || zodDef?.minimum;
-          } else if (
-            checkKind === "max" ||
-            checkConstructor === "$ZodCheckMaxLength" ||
-            zodDef?.check === "max_length"
-          ) {
-            schema.maxLength = check.value || zodDef?.maximum;
-          } else if (
-            checkKind === "regex" ||
-            checkConstructor === "$ZodCheckRegex" ||
-            zodDef?.format === "regex"
-          ) {
-            schema.pattern = check.regex?.source || zodDef?.pattern?.source;
-          }
-        }
-      }
-
-      return schema;
-    }
-
-    // Handle number schemas
-    if (typeName === "ZodNumber" || typeName === "number") {
-      const schema: Record<string, unknown> = { type: "number" };
-
-      if (def.checks && Array.isArray(def.checks)) {
-        for (const check of def.checks) {
-          if (check.kind === "min") {
-            schema.minimum = check.value;
-          } else if (check.kind === "max") {
-            schema.maximum = check.value;
-          } else if (check.kind === "int") {
-            schema.type = "integer";
-          }
-        }
-      }
-
-      return schema;
-    }
-
-    // Handle boolean schemas
-    if (typeName === "ZodBoolean" || typeName === "boolean") {
-      return { type: "boolean" };
-    }
-
-    // Handle enum schemas
-    if (typeName === "ZodEnum" || typeName === "enum") {
-      return {
-        type: "string",
-        enum: def.values
-      };
-    }
-
-    // Handle literal schemas
-    if (typeName === "ZodLiteral" || typeName === "literal") {
-      const value = def.value !== undefined ? def.value : def.values?.[0];
-      return {
-        type: typeof value,
-        enum: [value]
-      };
-    }
-
-    // Handle array schemas
-    if (typeName === "ZodArray" || typeName === "array") {
-      const itemSchema = def.type ? zodToOpenApiSchema(def.type) : { type: "string" };
-      return {
-        type: "array",
-        items: itemSchema
-      };
-    }
-
-    // Handle record schemas
-    if (typeName === "ZodRecord" || typeName === "record") {
-      const valueType = def.valueType ? zodToOpenApiSchema(def.valueType) : { type: "string" };
-      return {
-        type: "object",
-        additionalProperties: valueType
-      };
-    }
-
-    // Default fallback
-    return { type: "object", additionalProperties: true };
+    const jsonSchema = z.toJSONSchema(zodSchema) as Record<string, unknown>;
+    return normalizeForOpenApi3(jsonSchema);
   } catch (error) {
     console.warn("Error converting Zod schema to OpenAPI:", error);
     return { type: "object", additionalProperties: true };
   }
+}
+
+/**
+ * Recursively normalize a JSON Schema 2020-12 object to be compatible with OpenAPI 3.0:
+ * - Strips `$schema`
+ * - Converts `const` to `enum: [value]`
+ * - Converts `anyOf: [{type: T}, {type: "null"}]` to `{type: T, nullable: true}`
+ * - Recurses into `properties`, `items`, `additionalProperties`, `anyOf`, `oneOf`, `allOf`
+ */
+function normalizeForOpenApi3(schema: Record<string, unknown>): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { $schema, ...rest } = schema;
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(rest)) {
+    if (key === "const") {
+      // OpenAPI 3.0 doesn't support `const`, use enum with a single value
+      result.enum = [value];
+    } else if (key === "anyOf" && Array.isArray(value)) {
+      // Check for nullable pattern: anyOf: [{type: T}, {type: "null"}]
+      const nonNull = value.filter(
+        (v: Record<string, unknown>) => !(v && typeof v === "object" && v.type === "null")
+      );
+      const hasNull = nonNull.length < value.length;
+      if (hasNull && nonNull.length === 1) {
+        // Collapse to the non-null schema + nullable: true
+        const inner = normalizeForOpenApi3(nonNull[0] as Record<string, unknown>);
+        Object.assign(result, inner, { nullable: true });
+      } else {
+        result.anyOf = value.map((v: Record<string, unknown>) =>
+          v && typeof v === "object" ? normalizeForOpenApi3(v) : v
+        );
+      }
+    } else if (key === "properties" && value && typeof value === "object") {
+      const props: Record<string, unknown> = {};
+      for (const [propKey, propVal] of Object.entries(value as Record<string, unknown>)) {
+        props[propKey] =
+          propVal && typeof propVal === "object"
+            ? normalizeForOpenApi3(propVal as Record<string, unknown>)
+            : propVal;
+      }
+      result.properties = props;
+    } else if (key === "items" && value && typeof value === "object" && !Array.isArray(value)) {
+      result.items = normalizeForOpenApi3(value as Record<string, unknown>);
+    } else if (
+      key === "additionalProperties" &&
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    ) {
+      result.additionalProperties = normalizeForOpenApi3(value as Record<string, unknown>);
+    } else if ((key === "oneOf" || key === "allOf") && Array.isArray(value)) {
+      result[key] = value.map((v: Record<string, unknown>) =>
+        v && typeof v === "object" ? normalizeForOpenApi3(v) : v
+      );
+    } else {
+      result[key] = value;
+    }
+  }
+
+  return result;
 }
 
 /**
