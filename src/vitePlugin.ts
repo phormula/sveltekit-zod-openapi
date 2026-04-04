@@ -4,6 +4,11 @@ import { generateDocs } from "./generateOpenApi.js";
 
 export type SvelteKitOpenApiPluginOptions = GenerateDocsOptions & {
   /**
+   * Whether to generate the OpenAPI spec when the dev server starts.
+   * Defaults to `true`.
+   */
+  generateOnDevStart?: boolean;
+  /**
    * When to regenerate the OpenAPI spec in dev mode.
    * - `"buildStart"` — generate once when the dev server starts (default)
    * - `"routeChange"` — regenerate when a `+server.ts` file changes
@@ -35,7 +40,9 @@ export type SvelteKitOpenApiPluginOptions = GenerateDocsOptions & {
  * ```
  */
 export function sveltekitOpenApi(options: SvelteKitOpenApiPluginOptions): Plugin {
+  const generateOnDevStart = options.generateOnDevStart ?? true;
   const devMode = options.devMode ?? "buildStart";
+  let command: "serve" | "build" = "build";
 
   async function generate() {
     try {
@@ -49,11 +56,17 @@ export function sveltekitOpenApi(options: SvelteKitOpenApiPluginOptions): Plugin
     name: "sveltekit-openapi-docs",
     enforce: "pre",
 
+    configResolved(config) {
+      command = config.command;
+    },
+
     async buildStart() {
+      if (command === "serve" && !generateOnDevStart) return;
       await generate();
     },
 
     async handleHotUpdate({ file }) {
+      if (command !== "serve") return;
       if (devMode !== "routeChange") return;
 
       // Regenerate when a +server.ts/js file changes

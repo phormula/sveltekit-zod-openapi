@@ -85,13 +85,13 @@ export const GET: RequestHandler = () => {
 
 Then visit `http://localhost:5173/docs` to browse your API documentation.
 
-> **Tip:** If you use the Vite plugin (see below), the spec is regenerated automatically on dev server start — so the docs are always up to date.
+> **Tip:** If you use the Vite plugin (see below), the spec is regenerated automatically on dev server start by default. You can turn that off for large APIs.
 
 ---
 
 ## Vite Plugin
 
-Instead of a separate script, you can use the Vite plugin to auto-generate the spec on every dev server start and production build:
+Instead of a separate script, you can use the Vite plugin to auto-generate the spec on every production build, and optionally on dev server start:
 
 ```ts
 // vite.config.ts
@@ -113,6 +113,25 @@ export default defineConfig({
 ```
 
 Set `devMode: "routeChange"` to also regenerate whenever a `+server.ts` file is saved during development.
+
+If your API is large and startup generation slows down `vite dev`, set `generateOnDevStart: false`:
+
+```ts
+sveltekitOpenApi({
+  routesDir: "src/routes/(api)",
+  outputPath: "static/openapi/swagger.json",
+  title: "My API",
+  version: "1.0.0",
+  generateOnDevStart: false,
+  devMode: "routeChange"
+});
+```
+
+With that setup:
+
+- `vite dev` skips the initial OpenAPI generation
+- changes to `+server.ts` or `+server.js` still regenerate the spec
+- `vite build` still generates the spec automatically
 
 ---
 
