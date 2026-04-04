@@ -179,6 +179,7 @@ export function buildOperationFromInfo(
   const operation: OpenApiOperation = {
     summary: info.summary || `Handler for ${httpMethod} request`,
     description: info.description,
+    ...(info.tags && info.tags.length > 0 ? { tags: info.tags } : {}),
     responses: allResponses
   };
 

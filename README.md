@@ -6,6 +6,7 @@ Auto-generate **OpenAPI 3.0** specifications from your SvelteKit API routes — 
 
 - **Automatic Zod Schema Detection** — Finds `z_*` schemas imported and used via `.safeParse()` / `.parse()`
 - **`@responseSchema` JSDoc Tags** — Declare response schemas in JSDoc comments without importing them in your route
+- **Endpoint Grouping with Tags** — Group related operations in Swagger/Scalar with `@tag` / `@tags`
 - **Field-Name-Aware Examples** — Generates realistic examples based on field names (`email`, `phone`, `amount`, etc.)
 - **`.describe("example:...")` Hints** — Override any field's example via Zod's `.describe()` method
 - **`@example` JSDoc Overrides** — Replace Zod-generated examples per status code with hand-written JSON
@@ -230,9 +231,26 @@ See the full list in [zodToOpenApi.ts](src/zodToOpenApi.ts).
 | `@description`        | Longer description              | `@description Returns the full user profile...` |
 | `@response`           | Status code description         | `@response 200 Successfully retrieved`          |
 | `@example`            | JSON example for a status code  | `@example 200 {"success": true}`                |
+| `@tag` / `@tags`      | Group operations in docs UI     | `@tag Users` or `@tags Users, Admin`            |
 | `@responseSchema`     | Map a Zod schema to a response  | `@responseSchema z_userResponse - 200`          |
 | `@auth`               | Explicitly set auth requirement | `@auth true` or `@auth false`                   |
 | `@hidden` / `@ignore` | Skip this handler               | `@hidden`                                       |
+
+### `@tag` Grouping
+
+Use `@tag` for a single group or `@tags` for a comma-separated list:
+
+```ts
+/**
+ * @summary List users
+ * @tag Users
+ */
+
+/**
+ * @summary Invite an admin
+ * @tags Users, Admin
+ */
+```
 
 ### `@example` Override
 
@@ -349,6 +367,7 @@ import { json } from "@sveltejs/kit";
 /**
  * @summary Get maintenance status
  * @description Provides maintenance status information
+ * @tag Maintenance
  * @auth false
  * @responseSchema z_maintenanceSchema - 200 from $lib/server/schemas/api/maintenance
  * @responseSchema z_maintenanceError - 404 from $lib/server/schemas/api/maintenance
@@ -370,6 +389,7 @@ export async function GET() {
   "get": {
     "summary": "Get maintenance status",
     "description": "Provides maintenance status information",
+    "tags": ["Maintenance"],
     "responses": {
       "200": {
         "description": "Maintenance status retrieved successfully",

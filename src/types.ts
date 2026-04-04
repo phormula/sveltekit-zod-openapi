@@ -9,6 +9,7 @@ export type ResponseSchemaRef = {
 export type JsDocInfo = {
   summary?: string;
   description?: string;
+  tags?: string[];
   examples?: Record<string /* status */, unknown>;
   responses?: Record<string /* status */, string /* description */>;
   requiresAuth?: boolean;
@@ -42,6 +43,7 @@ export type OpenApiResponse = {
 export type OpenApiOperation = {
   summary: string;
   description?: string;
+  tags?: string[];
   responses: Record<string, OpenApiResponse>;
   security?: Array<Record<string, string[]>>;
   requestBody?: {

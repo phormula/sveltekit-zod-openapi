@@ -41,12 +41,29 @@ function parseResponseSchemaTag(tagText: string): ResponseSchemaRef | null {
 }
 
 /**
+ * Parse a @tag or @tags value into OpenAPI operation tags.
+ *
+ * Supports:
+ *   @tag users
+ *   @tag User Management
+ *   @tags users, admin
+ */
+function parseOperationTags(tagText: string): string[] {
+  return tagText
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+/**
  * Turn parsed JSDoc into a simple info object.
  * Supported tags:
  *   @summary Text...
  *   @response 200 Description...
  *   @example 200 {"json":"example"}   (status code or "request")
  *   @description Text...
+ *   @tag Tag name
+ *   @tags tag-one, tag-two
  *   @auth true|false - Whether authentication is required
  *   @responseSchema schemaName - 200 [from $lib/server/schemas/api/payment]
  *   @hidden / @ignore - Skip this handler
@@ -61,6 +78,7 @@ export function interpretJsDoc(rawBlock: string): JsDocInfo {
   const info: JsDocInfo = {
     summary: undefined,
     description: b.description?.trim() || undefined,
+    tags: [],
     responses: {},
     examples: {},
     responseSchemas: []
@@ -89,6 +107,8 @@ export function interpretJsDoc(rawBlock: string): JsDocInfo {
       }
     } else if (tagName === "description") {
       info.description = tagText || info.description;
+    } else if (tagName === "tag" || tagName === "tags") {
+      info.tags!.push(...parseOperationTags(tagText));
     } else if (tagName === "auth") {
       info.requiresAuth = tagText.toLowerCase() === "true";
     } else if (tagName === "responseschema") {
@@ -97,6 +117,10 @@ export function interpretJsDoc(rawBlock: string): JsDocInfo {
         info.responseSchemas!.push(responseSchemaInfo);
       }
     }
+  }
+
+  if (info.tags && info.tags.length > 0) {
+    info.tags = [...new Set(info.tags)];
   }
 
   return info;
