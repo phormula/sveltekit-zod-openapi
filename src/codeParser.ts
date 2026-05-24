@@ -7,6 +7,7 @@ export type { ZodSchemaInfo };
 /** Aliases map (e.g. { "$lib": "src/lib" }) — set at init time */
 let _aliases: Record<string, string> = { $lib: "src/lib" };
 let _projectRoot: string = process.cwd();
+const moduleCache = new Map<string, Promise<Record<string, unknown>>>();
 
 /**
  * Initialise path resolution for a specific project.
@@ -15,6 +16,7 @@ let _projectRoot: string = process.cwd();
 export function initResolver(projectRoot: string, aliases: Record<string, string>) {
   _projectRoot = projectRoot;
   _aliases = aliases;
+  moduleCache.clear();
 }
 
 /**
@@ -38,10 +40,24 @@ function resolveImportPath(importPath: string): string {
  * so that TypeScript schemas can be loaded at runtime.
  */
 async function dynamicImport(filePath: string): Promise<Record<string, unknown>> {
-  if (filePath.endsWith(".ts")) {
-    return tsImport(filePath, import.meta.url) as Promise<Record<string, unknown>>;
+  const cacheKey = path.resolve(filePath);
+  const cachedModule = moduleCache.get(cacheKey);
+  if (cachedModule) {
+    return cachedModule;
   }
-  return import(filePath);
+
+  const modulePromise = filePath.endsWith(".ts")
+    ? (tsImport(filePath, import.meta.url) as Promise<Record<string, unknown>>)
+    : (import(filePath) as Promise<Record<string, unknown>>);
+
+  moduleCache.set(cacheKey, modulePromise);
+
+  try {
+    return await modulePromise;
+  } catch (error) {
+    moduleCache.delete(cacheKey);
+    throw error;
+  }
 }
 
 /**
