@@ -1,6 +1,6 @@
 {
   "name": "sveltekit-openapi-docs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Auto-generate OpenAPI 3.0 specs from SvelteKit API routes with Zod schema support",
   "type": "module",
   "main": "./dist/index.js",
@@ -48,19 +48,19 @@
   "devDependencies": {
     "@eslint/compat": "^2.0.3",
     "@eslint/js": "^10.0.1",
-    "comment-parser": "^1.4.1",
+    "comment-parser": "^1.4.7",
     "eslint": "^10.0.3",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.4.0",
     "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.1",
-    "zod": "^4.1.8"
+    "vite": "^8.0.14",
+    "zod": "^4.3.6"
   },
   "dependencies": {
-    "@faker-js/faker": "^10.0.0",
-    "@types/node": "^25.3.5",
+    "@faker-js/faker": "^10.4.0",
+    "@types/node": "^25.4.0",
     "randexp": "^0.5.3",
-    "tsx": "^4.20.4",
+    "tsx": "^4.22.3",
     "typescript": "^5.0.0",
     "zod-schema-faker": "^2.1.1"
   }
