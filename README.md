@@ -1,6 +1,6 @@
 # sveltekit-openapi-docs
 
-Auto-generate **OpenAPI 3.0** specifications from your SvelteKit API routes — with full **Zod schema** support, field-aware examples, and zero unused imports.
+Generate **OpenAPI 3.0** specifications from SvelteKit API routes, with Zod schema support and realistic examples.
 
 ## Features
 
@@ -19,19 +19,21 @@ Auto-generate **OpenAPI 3.0** specifications from your SvelteKit API routes — 
 ### 1. Install
 
 ```bash
-# From a local path (monorepo)
-npm install ./packages/sveltekit-openapi-docs
-
-# Or publish to npm and install normally
 npm install sveltekit-openapi-docs
 ```
 
-Peer dependencies: `zod` (>=3.19) and `comment-parser` (>=1.4).
+The package supports Zod 3.19 and newer. If your project does not already provide the required peers, install them too:
+
+```bash
+npm install zod comment-parser
+```
+
+The Vite plugin additionally requires Vite 5 or newer. Vite is an optional peer, so it is not needed when you only use `generateDocs`.
 
 ### 2. Create a Generator Script
 
 ```ts
-// generate-docs.mjs
+// generate-docs.ts
 import { generateDocs } from "sveltekit-openapi-docs";
 
 await generateDocs({
@@ -47,7 +49,7 @@ await generateDocs({
 ```json
 {
   "scripts": {
-    "generate:docs": "tsx generate-docs.mjs"
+    "generate:docs": "tsx generate-docs.ts"
   }
 }
 ```
@@ -224,7 +226,7 @@ The generator recognizes ~70 common field name patterns:
 | `transactionId`        | `"txn_abc123"`                           |
 | `authorization_url`    | `"https://checkout.paystack.com/abc123"` |
 
-See the full list in [zodToOpenApi.ts](src/zodToOpenApi.ts).
+See the full mapping in [zodToOpenApi.ts](https://github.com/phormula/sveltekit-zod-openapi/blob/main/src/zodToOpenApi.ts).
 
 ### 3. Format/Validation-Based Example
 
@@ -329,6 +331,21 @@ await generateDocs({
   }
 });
 ```
+
+`generateDocs` writes the formatted JSON document to `outputPath`. To build a specification in memory instead, use `generateOpenApiSpec`:
+
+```ts
+import { generateOpenApiSpec } from "sveltekit-openapi-docs";
+
+const spec = await generateOpenApiSpec("src/routes/(api)", {
+  routesDir: "src/routes/(api)",
+  outputPath: "static/openapi/swagger.json",
+  title: "My API",
+  version: "1.0.0"
+});
+```
+
+The generated document always includes default `200`, `400`, and `500` responses. Authenticated operations also include `401` and `403` responses. Override their descriptions and examples with `@response` and `@example` tags.
 
 ---
 

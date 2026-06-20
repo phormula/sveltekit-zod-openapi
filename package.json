@@ -1,6 +1,6 @@
 {
   "name": "sveltekit-openapi-docs",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "description": "Auto-generate OpenAPI 3.0 specs from SvelteKit API routes with Zod schema support",
   "type": "module",
   "main": "./dist/index.js",
@@ -35,6 +35,14 @@
     "generator",
     "vite-plugin"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phormula/sveltekit-zod-openapi.git"
+  },
+  "homepage": "https://github.com/phormula/sveltekit-zod-openapi#readme",
+  "bugs": {
+    "url": "https://github.com/phormula/sveltekit-zod-openapi/issues"
+  },
   "license": "MIT",
   "peerDependencies": {
     "comment-parser": "^1.4.0",
