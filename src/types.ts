@@ -40,11 +40,21 @@ export type OpenApiResponse = {
   };
 };
 
+export type OpenApiParameter = {
+  name: string;
+  in: "path";
+  required: true;
+  schema: {
+    type: "string";
+  };
+};
+
 export type OpenApiOperation = {
   summary: string;
   description?: string;
   tags?: string[];
   responses: Record<string, OpenApiResponse>;
+  parameters?: OpenApiParameter[];
   security?: Array<Record<string, string[]>>;
   requestBody?: {
     required: boolean;

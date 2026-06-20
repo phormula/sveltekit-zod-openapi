@@ -151,9 +151,14 @@ export function buildOperationFromInfo(
   routePath?: string,
   zodSchemaInfo?: ZodSchemaInfo,
   zodResponseSchemas?: ZodSchemaInfo[],
-  options?: GenerateDocsOptions
+  options?: GenerateDocsOptions,
+  hasJsonRequestBody = false
 ): OpenApiOperation {
-  const wantsBody = httpMethod === "POST" || httpMethod === "PUT" || httpMethod === "PATCH";
+  const supportsBody = httpMethod === "POST" || httpMethod === "PUT" || httpMethod === "PATCH";
+  const requestExample = info.examples?.["request"];
+  const wantsBody =
+    supportsBody &&
+    (Boolean(zodSchemaInfo) || requestExample !== undefined || hasJsonRequestBody);
 
   let standardResponses = buildStandardResponses(info);
 
@@ -183,6 +188,11 @@ export function buildOperationFromInfo(
     responses: allResponses
   };
 
+  const pathParameters = extractPathParameters(routePath);
+  if (pathParameters.length > 0) {
+    operation.parameters = pathParameters;
+  }
+
   if (requiresAuth) {
     operation.security = getSecurityRequirements(options?.securitySchemes);
   }
@@ -191,13 +201,16 @@ export function buildOperationFromInfo(
     if (zodSchemaInfo) {
       operation.requestBody = buildRequestBodyFromZodSchema(zodSchemaInfo);
     } else {
-      const requestExample = info.examples?.["request"] || { key: "value" };
+      const example = requestExample ?? {};
       operation.requestBody = {
         required: true,
         content: {
           "application/json": {
-            schema: generateSchemaFromExample(requestExample),
-            example: requestExample
+            schema:
+              requestExample === undefined
+                ? { type: "object", additionalProperties: true }
+                : generateSchemaFromExample(example),
+            example
           }
         }
       };
@@ -205,6 +218,17 @@ export function buildOperationFromInfo(
   }
 
   return operation;
+}
+
+function extractPathParameters(routePath?: string) {
+  if (!routePath) return [];
+
+  return [...routePath.matchAll(/\{([^}]+)\}/g)].map(([, name]) => ({
+    name,
+    in: "path" as const,
+    required: true as const,
+    schema: { type: "string" as const }
+  }));
 }
 
 /**

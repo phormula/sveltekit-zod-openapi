@@ -14,6 +14,7 @@ export type {
   ResponseSchemaRef,
   OpenApiSpec,
   OpenApiOperation,
+  OpenApiParameter,
   OpenApiResponse,
   OpenApiSchema,
   OpenApiSecurityScheme

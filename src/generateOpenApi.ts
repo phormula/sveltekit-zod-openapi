@@ -146,7 +146,8 @@ async function parseFileForHandlers(
       routePath,
       zodRequestSchema || undefined,
       zodResponseSchemas,
-      _options
+      _options,
+      /\brequest\s*\.\s*json\s*\(/.test(handlerCode)
     );
   }
 

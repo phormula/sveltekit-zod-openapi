@@ -13,6 +13,123 @@ function ensureFakerInitialized() {
   }
 }
 
+type FieldExampleGenerator = () => unknown;
+
+/** Semantic defaults used only when the generated value satisfies the field schema. */
+const FIELD_EXAMPLE_GENERATORS: Record<string, FieldExampleGenerator> = {
+  id: () => faker.string.uuid(),
+  uuid: () => faker.string.uuid(),
+  sessionid: () => `session_${faker.string.alphanumeric(16)}`,
+  transactionid: () => `txn_${faker.string.alphanumeric(12)}`,
+  reference: () => `ref_${faker.string.alphanumeric(12)}`,
+  accesscode: () => `access_${faker.string.alphanumeric(12)}`,
+  authorizationcode: () => `auth_${faker.string.alphanumeric(12)}`,
+  customercode: () => `cus_${faker.string.alphanumeric(12)}`,
+  referralcode: () => `REF${faker.string.alphanumeric(6).toUpperCase()}`,
+  code: () => faker.string.alphanumeric(8).toUpperCase(),
+  token: () => `tok_${faker.string.alphanumeric(24)}`,
+  key: () => `key_${faker.string.alphanumeric(20)}`,
+  apikey: () => `key_${faker.string.alphanumeric(20)}`,
+  clientkey: () => `client_${faker.string.alphanumeric(20)}`,
+  tenantclientkey: () => `client_${faker.string.alphanumeric(20)}`,
+  secret: () => `secret_${faker.string.alphanumeric(24)}`,
+  testkey: () => `test_${faker.string.alphanumeric(20)}`,
+  email: () => faker.internet.email(),
+  phone: () => "+233201234567",
+  phonenumber: () => "+233201234567",
+  internationalformatphone: () => "+233201234567",
+  name: () => faker.person.fullName(),
+  fullname: () => faker.person.fullName(),
+  firstname: () => faker.person.firstName(),
+  lastname: () => faker.person.lastName(),
+  username: () => faker.internet.username(),
+  accountname: () => faker.person.fullName(),
+  assignedname: () => faker.person.fullName(),
+  address: () => faker.location.streetAddress(),
+  city: () => faker.location.city(),
+  country: () => faker.location.countryCode(),
+  countrycode: () => faker.location.countryCode(),
+  currency: () => faker.finance.currencyCode(),
+  amount: () => faker.number.int({ min: 1000, max: 100000 }),
+  requestedamount: () => faker.number.int({ min: 1000, max: 100000 }),
+  price: () => faker.number.int({ min: 1000, max: 100000 }),
+  discount: () => faker.number.int({ min: 0, max: 50 }),
+  fees: () => faker.number.int({ min: 0, max: 5000 }),
+  count: () => faker.number.int({ min: 1, max: 100 }),
+  totalcount: () => faker.number.int({ min: 1, max: 500 }),
+  page: () => 1,
+  limit: () => 20,
+  offset: () => 0,
+  success: () => true,
+  active: () => true,
+  enabled: () => true,
+  verified: () => true,
+  isactive: () => true,
+  isverified: () => true,
+  isundermaintenance: () => false,
+  status: () => "success",
+  domain: () => "test",
+  channel: () => "card",
+  gatewayresponse: () => "Approved",
+  receiptnumber: () => `receipt_${faker.string.alphanumeric(10)}`,
+  type: () => "standard",
+  role: () => "user",
+  message: () => "Operation completed successfully.",
+  error: () => "The request could not be completed.",
+  description: () => faker.lorem.sentence(),
+  reason: () => faker.lorem.sentence(),
+  title: () => faker.lorem.words(3),
+  label: () => faker.lorem.words(2),
+  url: () => faker.internet.url(),
+  callbackurl: () => `${faker.internet.url()}/callback`,
+  redirecturl: () => `${faker.internet.url()}/redirect`,
+  authorizationurl: () => `${faker.internet.url()}/authorize`,
+  ipaddress: () => faker.internet.ipv4(),
+  date: () => faker.date.recent().toISOString().slice(0, 10),
+  createdat: () => faker.date.past().toISOString(),
+  updatedat: () => faker.date.recent().toISOString(),
+  expiresat: () => faker.date.future().toISOString(),
+  paidat: () => faker.date.recent().toISOString(),
+  timestamp: () => faker.date.recent().toISOString()
+};
+
+function normalizeFieldName(fieldName: string): string {
+  return fieldName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+}
+
+function getFieldExample(
+  zodSchema: z.ZodTypeAny,
+  fieldName: string
+): unknown | undefined {
+  ensureFakerInitialized();
+
+  const normalized = normalizeFieldName(fieldName);
+  let generator = FIELD_EXAMPLE_GENERATORS[normalized];
+
+  if (!generator) {
+    if (normalized.endsWith("id")) generator = FIELD_EXAMPLE_GENERATORS.id;
+    else if (normalized.endsWith("email")) generator = FIELD_EXAMPLE_GENERATORS.email;
+    else if (normalized.endsWith("phone")) generator = FIELD_EXAMPLE_GENERATORS.phone;
+    else if (normalized.endsWith("name")) generator = FIELD_EXAMPLE_GENERATORS.name;
+    else if (normalized.endsWith("url")) generator = FIELD_EXAMPLE_GENERATORS.url;
+    else if (normalized.endsWith("code")) generator = FIELD_EXAMPLE_GENERATORS.code;
+    else if (normalized.endsWith("token")) generator = FIELD_EXAMPLE_GENERATORS.token;
+    else if (normalized.endsWith("at")) generator = FIELD_EXAMPLE_GENERATORS.updatedat;
+    else if (normalized.startsWith("is") || normalized.startsWith("has")) {
+      generator = FIELD_EXAMPLE_GENERATORS.enabled;
+    }
+  }
+
+  if (!generator) return undefined;
+
+  const candidate = generator();
+  try {
+    return zodSchema.safeParse(candidate).success ? candidate : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Convert a Zod schema to OpenAPI 3.0 schema format.
  * Uses Zod v4's built-in toJSONSchema() and normalizes for OpenAPI 3.0 compatibility.
@@ -98,8 +215,11 @@ function normalizeForOpenApi3(schema: Record<string, unknown>): Record<string, u
  *
  * Returns undefined if no example hint is found.
  */
-function extractDescribeExample(def: Record<string, unknown>): unknown | undefined {
-  const description = def.description as string | undefined;
+function extractDescribeExample(
+  zodSchema: z.ZodTypeAny,
+  def: Record<string, unknown>
+): unknown | undefined {
+  const description = zodSchema.description || (def.description as string | undefined);
   if (!description) return undefined;
 
   const match = description.match(/^example:(.+)$/i);
@@ -119,10 +239,11 @@ function extractDescribeExample(def: Record<string, unknown>): unknown | undefin
  *
  * Priority order for example values:
  * 1. .describe("example:...") hint on the field
- * 2. zod-schema-faker for generic schema-driven generation
+ * 2. A semantic field-name-aware value that passes the field schema
+ * 3. zod-schema-faker for generic schema-driven generation
  *
  * @param zodSchema - The Zod schema to generate an example for
- * @param fieldName - Optional field name (unused, kept for API compatibility)
+ * @param fieldName - Optional field name for context-aware examples
  */
 export function generateExampleFromZodSchema(zodSchema: z.ZodTypeAny, fieldName?: string): unknown {
   try {
@@ -131,7 +252,7 @@ export function generateExampleFromZodSchema(zodSchema: z.ZodTypeAny, fieldName?
     const typeName = def.type || def.typeName;
 
     // Priority 1: Check .describe("example:...") hint
-    const describeExample = extractDescribeExample(def);
+    const describeExample = extractDescribeExample(zodSchema, def);
     if (describeExample !== undefined) {
       return describeExample;
     }
@@ -162,7 +283,14 @@ export function generateExampleFromZodSchema(zodSchema: z.ZodTypeAny, fieldName?
       return example;
     }
 
-    // Priority 2: Use zod-schema-faker for all other types
+    if (fieldName) {
+      const fieldExample = getFieldExample(zodSchema, fieldName);
+      if (fieldExample !== undefined) {
+        return fieldExample;
+      }
+    }
+
+    // Priority 3: Use zod-schema-faker for all other types
     ensureFakerInitialized();
     return fake(zodSchema);
   } catch (error) {
